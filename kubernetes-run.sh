@@ -24,7 +24,7 @@ ${KUBECTL} run $name \
   --overrides="$(sed -e "s;__NAME__;$name;g" \
 	-e "s;__IMAGE__;$img;g" \
 	-e "s;__CMD__;$cmdstring;g" \
-	kubernetes/kubernetes-run-overrides.json)"
+	$(dirname $0)/kubernetes-run-overrides.json)"
 
 echo
 bash $(dirname $0)/wait-for-pod-state.sh "app=${name}" Running 30

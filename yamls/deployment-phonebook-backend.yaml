@@ -1,0 +1,21 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: phonebook-backend__SUFFIX__
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: phonebook-backend
+        stage: __STAGE__
+    spec:
+      containers:
+      - name: phonebook-backend
+        image: kube-registry.kube-system.svc.cluster.local:5000/phonebook-backend:__IMG_VERSION__
+        ports:
+        - containerPort: 9293
+      - name: phonebook-redis
+        image: redis
+        ports:
+        - containerPort: 6379

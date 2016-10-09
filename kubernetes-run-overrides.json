@@ -1,7 +1,7 @@
 {
   "apiVersion": "v1",
   "metadata": {
-    "namespace": "__NS__",
+    "namespace": "__NAMESPACE__",
     "labels": {
       "app": "__NAME__"
     }
@@ -22,7 +22,7 @@
       {
         "name":"jenkins-workspace",
         "persistentVolumeClaim": {
-          "claimName": "pvc-__NS__-jenkins-workspace"
+          "claimName": "pvc-__NAMESPACE__-jenkins-workspace"
         }
       }
     ]

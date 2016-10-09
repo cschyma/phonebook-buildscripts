@@ -17,6 +17,9 @@ fi
 if [ ! -z "$suffix" ]; then
   suffix="-$suffix"
 fi
+if [ -z "$NAMESPACE" ]; then
+  NAMESPACE="default"
+fi
 if [ -z "$KUBECTL" ]; then
   KUBECTL="$(which kubectl)"
   if [ -z "$KUBECTL" ]; then
@@ -24,20 +27,22 @@ if [ -z "$KUBECTL" ]; then
   fi
 fi
 
-if ${KUBECTL} describe deployment phonebook-${pkg}${suffix} > /dev/null 2>&1; then
+if ${KUBECTL} describe deployment --namespace="$NAMESPACE" phonebook-${pkg}${suffix} > /dev/null 2>&1; then
   bash update-phonebook.sh $pkg $ver $stage $suffix
 else
   sed -e "s;__IMG_VERSION__;1git$ver;" \
     -e "s;__STAGE__;$stage;g" \
     -e "s;__SUFFIX__;$suffix;g" \
+    -e "s;__NAMESPACE__;$NAMESPACE;g" \
     yamls/deployment-phonebook-${pkg}.yaml \
     | ${KUBECTL} create -f -
 fi
 
-if ! ${KUBECTL} describe service phonebook-${pkg}${suffix} > /dev/null 2>&1; then
+if ! ${KUBECTL} describe service --namespace="$NAMESPACE" phonebook-${pkg}${suffix} > /dev/null 2>&1; then
   sed -e "s;__IMG_VERSION__;1git$ver;" \
     -e "s;__STAGE__;$stage;g" \
     -e "s;__SUFFIX__;$suffix;g" \
+    -e "s;__NAMESPACE__;$NAMESPACE;g" \
     yamls/service-phonebook-${pkg}.yaml \
     | ${KUBECTL} create -f -
 fi

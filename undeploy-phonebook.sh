@@ -16,6 +16,9 @@ fi
 if [ ! -z "$suffix" ]; then
   suffix="-$suffix"
 fi
+if [ -z "$NAMESPACE" ]; then
+  NAMESPACE="default"
+fi
 if [ -z "$KUBECTL" ]; then
   KUBECTL="$(which kubectl)"
   if [ -z "$KUBECTL" ]; then
@@ -23,5 +26,5 @@ if [ -z "$KUBECTL" ]; then
   fi
 fi
 
-${KUBECTL} delete deployment phonebook-${pkg}${suffix}
-${KUBECTL} delete service phonebook-${pkg}${suffix}
+${KUBECTL} delete deployment --namespace="$NAMESPACE" phonebook-${pkg}${suffix}
+${KUBECTL} delete service --namespace="$NAMESPACE" phonebook-${pkg}${suffix}

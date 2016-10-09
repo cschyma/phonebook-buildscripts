@@ -17,6 +17,9 @@ fi
 if [ ! -z "$suffix" ]; then
   suffix="-$suffix"
 fi
+if [ -z "$NAMESPACE" ]; then
+  NAMESPACE="default"
+fi
 if [ -z "$KUBECTL" ]; then
   KUBECTL="$(which kubectl)"
   if [ -z "$KUBECTL" ]; then
@@ -24,4 +27,4 @@ if [ -z "$KUBECTL" ]; then
   fi
 fi
 
-${KUBECTL} set image deployment/phonebook-${pkg}${suffix} phonebook-${pkg}=kube-registry.kube-system.svc.cluster.local:5000/phonebook-${pkg}:1git${ver}
+${KUBECTL} set image --namespace="$NAMESPACE" deployment/phonebook-${pkg}${suffix} phonebook-${pkg}=kube-registry.kube-system.svc.cluster.local:5000/phonebook-${pkg}:1git${ver}

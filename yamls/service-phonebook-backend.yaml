@@ -2,7 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: phonebook-backend__SUFFIX__
-  namespace: default
+  namespace: __NAMESPACE__
   labels:
     app: phonebook-backend
     stage: __STAGE__

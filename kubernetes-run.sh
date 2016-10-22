@@ -3,9 +3,10 @@
 name=$1
 img=$2
 cmd=$3
+override_file=$4
 
 if [ -z "$name" -o -z "$img" -o -z "$cmd" ]; then
-  echo "Usage $0 <name> <image> <cmd>"
+  echo "Usage $0 <name> <image> <cmd> [<override-file>]"
   exit 1
 fi
 if [ -z "$NAMESPACE" ]; then
@@ -18,6 +19,8 @@ if [ -z "$KUBECTL" ]; then
   fi
 fi
 
+[ -z "$override_file" ] && override_file="kubernetes-run-overrides.json"
+
 function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
 cmdstring='[ "'$(join_by '", "' $cmd)'" ]'
 
@@ -29,7 +32,7 @@ ${KUBECTL} run $name \
 	-e "s;__IMAGE__;$img;g" \
 	-e "s;__CMD__;$cmdstring;g" \
   -e "s;__NAMESPACE__;$NAMESPACE;g" \
-	$(dirname $0)/kubernetes-run-overrides.json)"
+	$(dirname $0)/${override_file})"
 
 echo
 bash $(dirname $0)/wait-for-pod-state.sh "app=${name}" Running 30

@@ -12,14 +12,13 @@ fi
 if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
-KUBECTL="$(dirname $0)/kubectl.sh"
 
 [ -z "$override_file" ] && override_file="kubernetes-run-overrides.json"
 
 function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
 cmdstring='[ "'$(join_by '", "' $cmd)'" ]'
 
-${KUBECTL} run $name \
+$(dirname $0)/kubectl.sh run $name \
   --namespace="$NAMESPACE" \
   --image=kube-registry.kube-system.svc.cluster.local:5000/${img} \
   --restart=Never \

@@ -20,10 +20,7 @@ if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
 if [ -z "$KUBECTL" ]; then
-  KUBECTL="$(which kubectl)"
-  if [ -z "$KUBECTL" ]; then
-    KUBECTL="${WORKSPACE}/../kube/kubectl"
-  fi
+  KUBECTL="$(dirname $0)/kubectl.sh"
 fi
 
 ${KUBECTL} delete deployment --namespace="$NAMESPACE" phonebook-${pkg}${suffix}

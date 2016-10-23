@@ -21,10 +21,7 @@ if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
 if [ -z "$KUBECTL" ]; then
-  KUBECTL="$(which kubectl)"
-  if [ -z "$KUBECTL" ]; then
-    KUBECTL="${WORKSPACE}/../kube/kubectl"
-  fi
+  KUBECTL="$(dirname $0)/kubectl.sh"
 fi
 
 if ${KUBECTL} describe deployment --namespace="$NAMESPACE" phonebook-${pkg}${suffix} > /dev/null 2>&1; then

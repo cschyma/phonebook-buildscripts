@@ -10,9 +10,7 @@ if [ -z "$KUBE_SERVER" ]; then
   KUBE_SERVER="https://kubernetes.default.svc.cluster.local"
 fi
 
-touch /tmp/kubeconfig
 ${KUBECTL} \
-  --kubeconfig=/tmp/kubeconfig \
   --server=${KUBE_SERVER} \
   --certificate-authority="/run/secrets/kubernetes.io/serviceaccount/ca.crt" \
   --token="$(</run/secrets/kubernetes.io/serviceaccount/token)" \

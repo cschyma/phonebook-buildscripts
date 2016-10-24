@@ -253,7 +253,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
     }
     stage(&apos;ATS:Preparation&apos;) {
         sh &apos;buildscripts/deploy-phonebook.sh backend \$VERSION&apos;
-        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-backend,stage=pipeline Running 10&apos;
+        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-backend,stage=pipeline Running 30&apos;
     }
     stage(&apos;ATS:Test&apos;) {
         sh &apos;buildscripts/kubernetes-run.sh phonebook-test-backend ruby-phonebook:019ab7bab4cc &quot;/src/\${JOB_NAME}/buildscripts/inttest.sh /src/\${JOB_NAME}/backend&quot;&apos;
@@ -315,7 +315,7 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
     }
     stage(&apos;ATS:Preparation&apos;) {
         sh &apos;buildscripts/deploy-phonebook.sh frontend \$VERSION&apos;
-        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-frontend,stage=pipeline Running 10&apos;
+        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-frontend,stage=pipeline Running 30&apos;
     }
     stage(&apos;ATS:Test&apos;) {
         retry(3) {

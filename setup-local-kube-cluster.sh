@@ -24,6 +24,12 @@ function log_end {
   log_end
 )
 
+id $USERNAME | grep docker > /dev/null || (
+  log_start "Adding user to docker group.."
+  adduser $USERNAME docker
+  log_end
+)
+
 dpkg -l kubelet >/dev/null 2>&1 || (
   log_start "Installing kubernetes.."
   [ -d /etc/apt/sources.list.d/kubernetes.list ] \

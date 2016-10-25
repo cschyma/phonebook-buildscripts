@@ -20,7 +20,7 @@ function log_end {
 
 [ -d ~/.kube.workshop ] || (
   log_start "Moving old kubeconfig"
-  mv ~/.kube ~/.kube.workshop
+  [ -d ~/.kube ] && mv ~/.kube ~/.kube.workshop
   log_end
 )
 

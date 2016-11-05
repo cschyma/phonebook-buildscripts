@@ -36,7 +36,7 @@ function rspec {
   bundle exec rspec \
   --format RspecJunitFormatter \
   --out target/rspec.xml \
-  $SPECS
+  $1
 }
 
 function test {
@@ -46,7 +46,7 @@ function test {
   elif [ "$PKG" = "backend" ]; then
     SPECS="spec/app/models/ spec/framework/persistence/memory_spec.rb"
   fi
-  rspec
+  rspec $SPECS
   echo "done."
 }
 
@@ -57,7 +57,7 @@ function integration-test {
   elif [ "$PKG" = "backend" ]; then
     SPECS="spec/app/api_v1_spec.rb"
   fi
-  rspec
+  rspec $SPECS
   echo "done."
 }
 

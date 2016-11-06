@@ -1,12 +1,12 @@
 #!/bin/bash
 
-name=$1
-img=$2
+img=$1
+name=$2
 cmd=$3
 override_file=$4
 
 if [ -z "$name" -o -z "$img" -o -z "$cmd" ]; then
-  echo "Usage $0 <name> <image> <cmd> [<override-file>]"
+  echo "Usage $0 <name> <image> [<cmd>] [<override-file>]"
   exit 1
 fi
 if [ -z "$KUBECTL" ]; then
@@ -22,6 +22,7 @@ if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
 
+[ -z "$cmd" ] && cmd="tail -f /dev/null"
 [ -z "$override_file" ] && override_file="kubernetes-run-overrides.json"
 
 function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }

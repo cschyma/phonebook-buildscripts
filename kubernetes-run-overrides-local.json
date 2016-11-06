@@ -11,7 +11,7 @@
       {
         "name": "__NAME__",
         "image": "kube-registry.kube-system.svc.cluster.local:5000/__IMAGE__",
-        "args": __CMD__,
+        "command": __CMD__,
         "volumeMounts": [{
           "mountPath": "/src",
           "name": "jenkins-workspace"

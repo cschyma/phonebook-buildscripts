@@ -9,9 +9,9 @@ if [ -z "$1" ]; then
 fi
 
 PKG=""
-if [ "$(basename $DIR)" = "phonebook-frontend" ]; then
+if echo "$(basename $DIR)" | grep "frontend" >/dev/null; then
   PKG="frontend"
-elif [ "$(basename $DIR)" = "phonebook-backend" ]; then
+elif echo "$(basename $DIR)" | grep "backend" >/dev/null; then
   PKG="backend"
 fi
 VERSION=$(git log --pretty=format:'%h' -n 1)

@@ -30,6 +30,10 @@ $KUBECTL exec -ti $name \
   --namespace="$NAMESPACE" \
   -- bash -c "$cmd"
 
+exitcode=$?
+
 echo "Reading logs from pod $name:"
 echo
 ${KUBECTL} logs --namespace="$NAMESPACE" $name
+
+exit $exitcode

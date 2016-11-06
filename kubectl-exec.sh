@@ -1,9 +1,9 @@
 #!/bin/bash
 
 name=$1
-shift
+cmd=$2
 
-if [ -z "$name" -o -z "$*" ]; then
+if [ -z "$name" -o -z "$cmd" ]; then
   echo "Usage $0 <name> <cmd>"
   exit 1
 fi
@@ -28,7 +28,7 @@ $KUBECTL exec -ti $name \
   --certificate-authority="/run/secrets/kubernetes.io/serviceaccount/ca.crt" \
   --token="$(</run/secrets/kubernetes.io/serviceaccount/token)" \
   --namespace="$NAMESPACE" \
-  -- $*
+  -- bash -c "$cmd"
 
 echo "Reading logs from pod $name:"
 echo

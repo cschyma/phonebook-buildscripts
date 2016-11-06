@@ -1,3 +1,9 @@
+$KUBECTL delete $name \
+  --server=${KUBE_SERVER} \
+  --certificate-authority="/run/secrets/kubernetes.io/serviceaccount/ca.crt" \
+  --token="$(</run/secrets/kubernetes.io/serviceaccount/token)" \
+  --namespace="$NAMESPACE" \
+  -- bash -c "$cmd"
 #!/bin/bash
 
 name=$1
@@ -19,4 +25,8 @@ if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
 
-$KUBECTL delete pod $name
+$KUBECTL delete pod $name \
+  --server=${KUBE_SERVER} \
+  --certificate-authority="/run/secrets/kubernetes.io/serviceaccount/ca.crt" \
+  --token="$(</run/secrets/kubernetes.io/serviceaccount/token)" \
+  --namespace="$NAMESPACE"

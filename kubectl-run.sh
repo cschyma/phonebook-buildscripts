@@ -5,8 +5,8 @@ name=$2
 cmd=$3
 override_file=$4
 
-if [ -z "$name" -o -z "$img" -o -z "$cmd" ]; then
-  echo "Usage $0 <name> <image> [<cmd>] [<override-file>]"
+if [ -z "$name" -o -z "$img" ]; then
+  echo "Usage $0 <image> <name> [<cmd>] [<override-file>]"
   exit 1
 fi
 if [ -z "$KUBECTL" ]; then

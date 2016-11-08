@@ -33,9 +33,11 @@ function compile {
 }
 
 function rspec {
+  OUT="rspec.xml"
+  [ ! -z "$2" ] && OUT="$2"
   bundle exec rspec \
   --format RspecJunitFormatter \
-  --out target/rspec.xml \
+  --out target/${OUT} \
   $1
 }
 
@@ -60,7 +62,7 @@ function integration-test {
   elif [ "$PKG" = "backend" ]; then
     SPECS="spec/app/api_v1_spec.rb"
   fi
-  rspec $SPECS
+  rspec $SPECS "rspec-int.xml"
   echo "done."
 }
 

@@ -52,6 +52,9 @@ function test {
 
 function integration-test {
   echo "Running integration-tests.."
+  if [ -z "$ENDPOINT" ]; then
+  	export ENDPOINT="phonebook-backend"
+  fi
   if [ "$PKG" = "frontend" ]; then
     SPECS=""
   elif [ "$PKG" = "backend" ]; then

@@ -21,7 +21,7 @@ if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
 if [ -z "$KUBECTL" ]; then
-  KUBECTL="kubectl.sh"
+  KUBECTL="./kubectl.sh"
 fi
 
 if ${KUBECTL} describe deployment --namespace="$NAMESPACE" phonebook-${pkg}${suffix} > /dev/null 2>&1; then

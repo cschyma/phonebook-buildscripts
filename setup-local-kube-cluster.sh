@@ -199,7 +199,7 @@ ifup eth0
 log_end
 
 log_start "Pulling and pushing images.."
-img="ws-jenkins:1.3"
+img="ws-jenkins:1.2"
 docker pull pingworks/$img
 docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img
 docker push kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img

@@ -2,6 +2,11 @@
 
 set -e
 
+KUBEVERSION="v1.4.5"
+SVCCIDR="100.64.0.0/12"
+CLUSTERDNS="100.64.0.10"
+APISERVER="100.64.0.1"
+
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME
 
@@ -32,25 +37,61 @@ id $USERNAME | grep docker > /dev/null || (
 
 dpkg -l kubelet >/dev/null 2>&1 || (
   log_start "Installing kubernetes.."
+  dpkg -l apt-transport-https > /dev/null || apt-get update && apt-get install -y apt-transport-https
   [ -d /etc/apt/sources.list.d/kubernetes.list ] \
     || cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
 deb http://apt.kubernetes.io/ kubernetes-xenial main
 EOF
+  apt-key list | grep '2048R/A7317B0F' >/dev/null \
+    || curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
   apt-get update && apt-get install -y docker.io kubelet kubeadm kubectl kubernetes-cni
-  chmod o+rw /run/docker.sock
-  mkdir -p /etc/systemd/system/docker.socket.d/
-  cat << EOF > /etc/systemd/system/docker.socket.d/override.conf
-[Socket]
-SocketMode=0666
+
+  grep 'cluster-dns=${CLUSTERDNS}' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf >/dev/null || (
+    sed -i -e "s;--cluster-dns=[0-9\.]* ;--cluster-dns=${CLUSTERDNS} ;" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+    systemctl daemon-reload
+    systemctl restart kubelet
+  )
+
+  [ -e /etc/systemd/system/docker.service.d/override.conf ] || (
+    mkdir -p /etc/systemd/system/docker.service.d/
+    cat << EOF >/etc/systemd/system/docker.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd:// -H 192.168.200.2 \$DOCKER_OPTS
 EOF
+    systemctl daemon-reload
+    systemctl restart docker
+  )
   log_end
 )
 
 [ -d /etc/kubernetes/pki ] || (
   log_start "Initializing Cluster.."
-  kubeadm init && sleep 2
+  kubeadm init \
+    --api-advertise-addresses 192.168.200.2 \
+    --use-kubernetes-version ${KUBEVERSION} \
+    --service-cidr ${SVCCIDR} \
+    | tee /vagrant/kubeinit.out && sleep 2
+  grep '^kubeadm join --token' /vagrant/kubeinit.out > /vagrant/kubeadm-join
   kubectl taint nodes --all dedicated-
-  chmod 644 /etc/kubernetes/admin.conf
+  log_end
+)
+
+[ -e /etc/kubernetes/pki/basic-auth.csv ] \
+  || echo 'admin,admin,1000' > /etc/kubernetes/pki/basic-auth.csv
+grep 'basic-auth-file' /etc/kubernetes/manifests/kube-apiserver.json >/dev/null || (
+  log_start "Configuring basic-auth for api server.."
+  oldpid=$(pidof kube-apiserver)
+  sed -i -e 's;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",\n          "--basic-auth-file=/etc/kubernetes/pki/basic-auth.csv",;' /etc/kubernetes/manifests/kube-apiserver.json
+  kill -HUP $oldpid
+  echo -n "Waiting for kube-apiserver to restart"
+  while [ "$(pidof kube-apiserver)" = "$oldpid" ]; do
+    echo -n "."
+    sleep 1
+  done
+  echo "waiting 20s seconds for api server to be available again."
+  sleep 20
+  echo
   log_end
 )
 
@@ -78,9 +119,13 @@ grep 'basic-auth-file' /etc/kubernetes/manifests/kube-apiserver.json >/dev/null 
 log_end
 
 log_start "Waiting for cluster pods to become ready.."
-while kubectl get pods --all-namespaces | awk '{print $4}' | grep -v STATUS | grep -v Running > /dev/null; do
-  echo -n "."
+output=$(kubectl get pods --all-namespaces)
+echo "$output"
+while echo "$output" | awk '{print $4}' | grep -v STATUS | grep -v Running >/dev/null; do
+  echo '------------------- Waiting 3 sec. -------------------'
   sleep 3
+  output=$(kubectl get pods --all-namespaces)
+  echo "$output"
 done
 echo
 echo "Pods ready, waiting another 10s"
@@ -109,7 +154,7 @@ OU                     = pingworks
 CN                     = kube-registry.kube-system.svc.cluster.local
 emailAddress           = test@email.address
 EOF
-    openssl req -x509 -config openssl-config -nodes -newkey rsa:2048 -keyout registry.key -out registry.crt > /dev/null
+    openssl req -x509 -config openssl-config -days 1825 -nodes -newkey rsa:2048 -keyout registry.key -out registry.crt > /dev/null
   )
   kubectl --namespace=kube-system describe secret registry-tls-secret > /dev/null || (
     cd /tmp/kube-registry
@@ -187,15 +232,11 @@ EOF
 )
 
 log_start "Configuring name resolution.."
-#apt-get install dnsmasq
-#cat << EOF >/etc/dnsmasq.d/10-kubernetes-cluster.conf
-#server=/cluster.local/100.64.0.10
-#EOF
-#sed -i -e 's;^#conf-dir=/etc/dnsmasq\.d/,\*\.conf;conf-dir=/etc/dnsmasq.d/,*.conf;' /etc/dnsmasq.conf
-#service dnsmasq restart
-sed -i -e 's;iface eth0 inet dhcp;iface eth0 inet dhcp\ndns-nameserver 100.64.0.10;' /etc/network/interfaces
-ifdown eth0
-ifup eth0
+log_start "Configuring name resolution.."
+grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
+  echo "nameserver ${CLUSTERDNS}" >> /etc/resolvconf/resolv.conf.d/head
+  systemctl restart networking
+)
 log_end
 
 log_start "Pulling and pushing images.."

@@ -46,10 +46,28 @@ EOF
     || curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
   apt-get update && apt-get install -y docker.io kubelet kubeadm kubectl kubernetes-cni
 
+  chmod o+rw /run/docker.sock
+  mkdir -p /etc/systemd/system/docker.socket.d/
+  cat << EOF > /etc/systemd/system/docker.socket.d/override.conf
+[Socket]
+SocketMode=0666
+EOF
+
   grep 'cluster-dns=${CLUSTERDNS}' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf >/dev/null || (
     sed -i -e "s;--cluster-dns=[0-9\.]* ;--cluster-dns=${CLUSTERDNS} ;" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
     systemctl daemon-reload
     systemctl restart kubelet
+  )
+
+  [ -e /etc/systemd/system/docker.service.d/override.conf ] || (
+    mkdir -p /etc/systemd/system/docker.service.d/
+    cat << EOF >/etc/systemd/system/docker.service.d/override.conf
+[Service]
+ExecStart=
+ExecStart=/usr/bin/dockerd -H fd:// -H localhost \$DOCKER_OPTS
+EOF
+    systemctl daemon-reload
+    systemctl restart docker
   )
   log_end
 )
@@ -275,7 +293,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
     }
     stage(&apos;CS:Build &amp; Test&apos;) {
         sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-backend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-backend &quot;cd /src/${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-backend &quot;cd /src/\${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
         sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-backend&apos;
     }
     stage(&apos;CS:Results&apos;) {
@@ -294,11 +312,11 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
     }
     stage(&apos;ATS:Test&apos;) {
         sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-test-backend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-test-backend &quot;cd /src/${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh integration-test&quot;&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-test-backend &quot;cd /src/\${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh integration-test&quot;&apos;
         junit &apos;backend/target/rspec*.xml&apos;
     }
     stage(&apos;ATS:Cleanup&apos;) {
-        sh &apos;\${KUBECTL} delete pod --namespace=&quot;\$NAMESPACE&quot; phonebook-test-backend&apos;
+        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-test-backend&apos;
         sh &apos;buildscripts/undeploy-phonebook.sh backend \$VERSION&apos;
     }
 }</script>
@@ -339,7 +357,7 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
     }
     stage(&apos;CS:Build &amp; Test&apos;) {
         sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-frontend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-frontend &quot;cd /src/${JOB_NAME}/frontend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-frontend &quot;cd /src/\${JOB_NAME}/frontend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
         sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-frontend&apos;
     }
     stage(&apos;CS:Results&apos;) {

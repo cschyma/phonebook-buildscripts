@@ -51,17 +51,6 @@ EOF
     systemctl daemon-reload
     systemctl restart kubelet
   )
-
-  [ -e /etc/systemd/system/docker.service.d/override.conf ] || (
-    mkdir -p /etc/systemd/system/docker.service.d/
-    cat << EOF >/etc/systemd/system/docker.service.d/override.conf
-[Service]
-ExecStart=
-ExecStart=/usr/bin/dockerd -H fd:// -H 192.168.200.2 \$DOCKER_OPTS
-EOF
-    systemctl daemon-reload
-    systemctl restart docker
-  )
   log_end
 )
 

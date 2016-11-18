@@ -58,9 +58,7 @@ EOF
   log_start "Initializing Cluster.."
   kubeadm init \
     --use-kubernetes-version ${KUBEVERSION} \
-    --service-cidr ${SVCCIDR} \
-    | tee /vagrant/kubeinit.out && sleep 2
-  grep '^kubeadm join --token' /vagrant/kubeinit.out > /vagrant/kubeadm-join
+    --service-cidr ${SVCCIDR} && sleep 2
   kubectl taint nodes --all dedicated-
   log_end
 )

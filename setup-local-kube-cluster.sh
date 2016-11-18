@@ -199,11 +199,14 @@ ifup eth0
 log_end
 
 log_start "Pulling and pushing images.."
-for img in ws-jenkins:1.1 ruby-phonebook:019ab7bab4cc ; do
-  docker pull pingworks/$img
-  docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/$img
-  docker push kube-registry.kube-system.svc.cluster.local:5000/$img
-done
+img="ws-jenkins:1.3"
+docker pull pingworks/$img
+docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img
+docker push kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img
+img="ruby-phonebook:019ab7bab4cc"
+docker pull pingworks/$img
+docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/$img
+docker push kube-registry.kube-system.svc.cluster.local:5000/$img
 log_end
 
 log_start "Creating namespaces.."
@@ -244,8 +247,9 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
         checkout([\$class: &apos;GitSCM&apos;, extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;buildscripts&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-buildscripts.git&apos;]]])
     }
     stage(&apos;CS:Build &amp; Test&apos;) {
-        sh &apos;buildscripts/kubernetes-run.sh phonebook-build-backend ruby-phonebook:019ab7bab4cc &quot;/src/\${JOB_NAME}/buildscripts/build-and-test.sh backend 1git\${VERSION}&quot;&apos;
-        sh &apos;\${KUBECTL} delete pod --namespace=&quot;\$NAMESPACE&quot; phonebook-build-backend&apos;
+        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-backend&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-backend &quot;cd /src/${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
+        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-backend&apos;
     }
     stage(&apos;CS:Results&apos;) {
         //junit &apos;backend/rspec*.xml&apos;
@@ -262,8 +266,9 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
         sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-backend,stage=pipeline Running 30&apos;
     }
     stage(&apos;ATS:Test&apos;) {
-        sh &apos;buildscripts/kubernetes-run.sh phonebook-test-backend ruby-phonebook:019ab7bab4cc &quot;/src/\${JOB_NAME}/buildscripts/inttest.sh /src/\${JOB_NAME}/backend&quot;&apos;
-        junit &apos;backend/rspec*.xml&apos;
+        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-test-backend&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-test-backend &quot;cd /src/${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh integration-test&quot;&apos;
+        junit &apos;backend/target/rspec*.xml&apos;
     }
     stage(&apos;ATS:Cleanup&apos;) {
         sh &apos;\${KUBECTL} delete pod --namespace=&quot;\$NAMESPACE&quot; phonebook-test-backend&apos;
@@ -304,10 +309,11 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
     stage(&apos;CS:Preparation&apos;) {
         checkout([\$class: &apos;GitSCM&apos;, branches: [[name: &apos;\$VERSION&apos;]], extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;frontend&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-frontend.git&apos;]]])
         checkout([\$class: &apos;GitSCM&apos;, extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;buildscripts&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-buildscripts.git&apos;]]])
-   }
+    }
     stage(&apos;CS:Build &amp; Test&apos;) {
-        sh &apos;buildscripts/kubernetes-run.sh phonebook-build-frontend ruby-phonebook:019ab7bab4cc &quot;/src/\${JOB_NAME}/buildscripts/build-and-test.sh frontend 1git\${VERSION}&quot;&apos;
-        sh &apos;\${KUBECTL} delete pod --namespace=&quot;\$NAMESPACE&quot; phonebook-build-frontend&apos;
+        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-frontend&apos;
+        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-frontend &quot;cd /src/${JOB_NAME}/frontend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
+        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-frontend&apos;
     }
     stage(&apos;CS:Results&apos;) {
         //junit &apos;frontend/rspec*.xml&apos;
@@ -397,7 +403,7 @@ spec:
     spec:
       containers:
       - name: jenkins
-        image: kube-registry.kube-system.svc.cluster.local:5000/ws-jenkins:1.1
+        image: kube-registry.kube-system.svc.cluster.local:5000/pingworks/ws-jenkins:1.3
         volumeMounts:
         - name: jenkins-workspace
           mountPath: /var/jenkins_home/workspace

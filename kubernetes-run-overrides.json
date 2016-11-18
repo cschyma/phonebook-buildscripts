@@ -3,7 +3,9 @@
   "metadata": {
     "namespace": "__NAMESPACE__",
     "labels": {
-      "app": "__NAME__"
+      "app": "__NAME__",
+      "type": "buildpod",
+      "stage": "pipeline"
     }
   },
   "spec": {

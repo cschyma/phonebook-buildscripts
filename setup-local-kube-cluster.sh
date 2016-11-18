@@ -403,7 +403,7 @@ spec:
     spec:
       containers:
       - name: jenkins
-        image: kube-registry.kube-system.svc.cluster.local:5000/pingworks/ws-jenkins:1.3
+        image: kube-registry.kube-system.svc.cluster.local:5000/pingworks/ws-jenkins:1.2
         volumeMounts:
         - name: jenkins-workspace
           mountPath: /var/jenkins_home/workspace

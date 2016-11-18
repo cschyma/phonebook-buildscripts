@@ -57,7 +57,6 @@ EOF
 [ -d /etc/kubernetes/pki ] || (
   log_start "Initializing Cluster.."
   kubeadm init \
-    --api-advertise-addresses 192.168.200.2 \
     --use-kubernetes-version ${KUBEVERSION} \
     --service-cidr ${SVCCIDR} \
     | tee /vagrant/kubeinit.out && sleep 2

@@ -39,8 +39,8 @@ systemctl start kubelet
 log_end "done."
 
 log_start "Waiting for cluster to start.."
-sleep 20
-while ! kubectl get pods --namespace kube-system 2>&1 | grep kube-dns | grep '3/3' > /dev/null; do
+sleep 10
+while ! kubectl get pods --namespace kube-system 2>&1 | grep 'kube-dns.*3/3.*Running' > /dev/null; do
   echo -n '.'
   sleep 5;
 done

@@ -147,6 +147,7 @@ kubectl describe rc kube-registry-v0 --namespace=kube-system >/dev/null 2>&1 || 
 [ req ]
 default_bits           = 2048
 distinguished_name     = req_distinguished_name
+x509_extensions        = v3_ca
 prompt                 = no
 
 [ req_distinguished_name ]
@@ -157,6 +158,12 @@ O                      = Kubernetes
 OU                     = pingworks
 CN                     = kube-registry.kube-system.svc.cluster.local
 emailAddress           = test@email.address
+
+[v3_ca]
+subjectAltName         = @alt_names
+
+[alt_names]
+DNS.1                  = kube-registry
 EOF
     openssl req -x509 -config openssl-config -days 1825 -nodes -newkey rsa:2048 -keyout registry.key -out registry.crt > /dev/null
   )

@@ -10,8 +10,8 @@ APISERVER="100.64.0.1"
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME
 
-PBFE="e8430b9"
-PBBE="c66dab7"
+PBFE="8aa0bb2"
+PBBE="b6f7e91"
 
 function log_start {
   echo "####################################"
@@ -419,49 +419,21 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
   </properties>
-  <scm class="org.jenkinsci.plugins.multiplescms.MultiSCM" plugin="multiple-scms@0.6">
-    <scms>
-      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
-        <configVersion>2</configVersion>
-        <userRemoteConfigs>
-          <hudson.plugins.git.UserRemoteConfig>
-            <url>https://github.com/pingworks/phonebook-backend.git</url>
-          </hudson.plugins.git.UserRemoteConfig>
-        </userRemoteConfigs>
-        <branches>
-          <hudson.plugins.git.BranchSpec>
-            <name>\$VERSION</name>
-          </hudson.plugins.git.BranchSpec>
-        </branches>
-        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-        <submoduleCfg class="list"/>
-        <extensions>
-          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-            <relativeTargetDir>backend</relativeTargetDir>
-          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-        </extensions>
-      </hudson.plugins.git.GitSCM>
-      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
-        <configVersion>2</configVersion>
-        <userRemoteConfigs>
-          <hudson.plugins.git.UserRemoteConfig>
-            <url>https://github.com/pingworks/phonebook-buildscripts.git</url>
-          </hudson.plugins.git.UserRemoteConfig>
-        </userRemoteConfigs>
-        <branches>
-          <hudson.plugins.git.BranchSpec>
-            <name>*/master</name>
-          </hudson.plugins.git.BranchSpec>
-        </branches>
-        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-        <submoduleCfg class="list"/>
-        <extensions>
-          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-            <relativeTargetDir>buildscripts</relativeTargetDir>
-          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-        </extensions>
-      </hudson.plugins.git.GitSCM>
-    </scms>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/pingworks/phonebook-backend.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>\${VERSION}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
   </scm>
   <canRoam>true</canRoam>
   <disabled>false</disabled>
@@ -500,49 +472,21 @@ cat << EOF >/data/jenkins/jobs/frontend/config.xml
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
   </properties>
-  <scm class="org.jenkinsci.plugins.multiplescms.MultiSCM" plugin="multiple-scms@0.6">
-    <scms>
-      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
-        <configVersion>2</configVersion>
-        <userRemoteConfigs>
-          <hudson.plugins.git.UserRemoteConfig>
-            <url>https://github.com/pingworks/phonebook-frontend.git</url>
-          </hudson.plugins.git.UserRemoteConfig>
-        </userRemoteConfigs>
-        <branches>
-          <hudson.plugins.git.BranchSpec>
-            <name>\$VERSION</name>
-          </hudson.plugins.git.BranchSpec>
-        </branches>
-        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-        <submoduleCfg class="list"/>
-        <extensions>
-          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-            <relativeTargetDir>frontend</relativeTargetDir>
-          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-        </extensions>
-      </hudson.plugins.git.GitSCM>
-      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
-        <configVersion>2</configVersion>
-        <userRemoteConfigs>
-          <hudson.plugins.git.UserRemoteConfig>
-            <url>https://github.com/pingworks/phonebook-buildscripts.git</url>
-          </hudson.plugins.git.UserRemoteConfig>
-        </userRemoteConfigs>
-        <branches>
-          <hudson.plugins.git.BranchSpec>
-            <name>*/master</name>
-          </hudson.plugins.git.BranchSpec>
-        </branches>
-        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-        <submoduleCfg class="list"/>
-        <extensions>
-          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-            <relativeTargetDir>buildscripts</relativeTargetDir>
-          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
-        </extensions>
-      </hudson.plugins.git.GitSCM>
-    </scms>
+  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.0">
+    <configVersion>2</configVersion>
+    <userRemoteConfigs>
+      <hudson.plugins.git.UserRemoteConfig>
+        <url>https://github.com/pingworks/phonebook-frontend.git</url>
+      </hudson.plugins.git.UserRemoteConfig>
+    </userRemoteConfigs>
+    <branches>
+      <hudson.plugins.git.BranchSpec>
+        <name>\${VERSION}</name>
+      </hudson.plugins.git.BranchSpec>
+    </branches>
+    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+    <submoduleCfg class="list"/>
+    <extensions/>
   </scm>
   <canRoam>true</canRoam>
   <disabled>false</disabled>

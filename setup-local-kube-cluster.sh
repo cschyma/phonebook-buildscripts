@@ -10,6 +10,9 @@ APISERVER="100.64.0.1"
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME
 
+PBFE="61da4ca"
+PBBE="ee5a03f"
+
 function log_start {
   echo "####################################"
   echo "# $1"
@@ -254,6 +257,10 @@ img="ruby-phonebook:019ab7bab4cc"
 docker pull pingworks/$img
 docker tag pingworks/$img kube-registry:5000/$img
 docker push kube-registry:5000/$img
+imgl="ruby-phonebook:latest"
+docker tag pingworks/$img pingworks/$imgl
+docker tag pingworks/$imgl kube-registry:5000/$imgl
+docker push kube-registry:5000/$imgl
 log_end
 
 log_start "Creating namespaces.."
@@ -263,8 +270,8 @@ done
 log_end
 
 log_start "Deploying Jenkins pod and service.."
-mkdir -p /data/jenkins/{workspace,jobs/backend,jobs/frontend}
-cat << EOF >/data/jenkins/jobs/backend/config.xml
+mkdir -p /data/jenkins/{workspace,jobs/backend-pipeline,jobs/frontend-pipeline,jobs/backend,jobs/frontend}
+cat << EOF >/data/jenkins/jobs/backend-pipeline/config.xml
 <?xml version='1.0' encoding='UTF-8'?>
 <flow-definition plugin="workflow-job@2.7">
   <actions/>
@@ -279,7 +286,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
         <hudson.model.StringParameterDefinition>
           <name>VERSION</name>
           <description></description>
-          <defaultValue>ee5a03f</defaultValue>
+          <defaultValue>$PBBE</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
@@ -328,7 +335,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
   <authToken>a12fde257cad123929237</authToken>
 </flow-definition>
 EOF
-cat << EOF > /data/jenkins/jobs/frontend/config.xml
+cat << EOF > /data/jenkins/jobs/frontend-pipeline/config.xml
 <?xml version='1.0' encoding='UTF-8'?>
 <flow-definition plugin="workflow-job@2.7">
   <actions/>
@@ -343,7 +350,7 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
         <hudson.model.StringParameterDefinition>
           <name>VERSION</name>
           <description></description>
-          <defaultValue>589a488</defaultValue>
+          <defaultValue>$PBFE</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
@@ -390,6 +397,168 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
   <triggers/>
   <authToken>a12fde257cad123929237</authToken>
 </flow-definition>
+EOF
+cat << EOF >/data/jenkins/jobs/backend/config.xml
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue>$PBBE</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="org.jenkinsci.plugins.multiplescms.MultiSCM" plugin="multiple-scms@0.6">
+    <scms>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>https://github.com/pingworks/phonebook-backend.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>\$VERSION</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>backend</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>https://github.com/pingworks/phonebook-buildscripts.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>*/master</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>buildscripts</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+    </scms>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <authToken>a12fde257cad123929237</authToken>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>echo &quot;Build it!&quot;</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>
+EOF
+cat << EOF >/data/jenkins/jobs/frontend/config.xml
+<?xml version='1.0' encoding='UTF-8'?>
+<project>
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue>$PBFE</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+  </properties>
+  <scm class="org.jenkinsci.plugins.multiplescms.MultiSCM" plugin="multiple-scms@0.6">
+    <scms>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>https://github.com/pingworks/phonebook-frontend.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>\$VERSION</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>frontend</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+      <hudson.plugins.git.GitSCM plugin="git@3.0.0">
+        <configVersion>2</configVersion>
+        <userRemoteConfigs>
+          <hudson.plugins.git.UserRemoteConfig>
+            <url>https://github.com/pingworks/phonebook-buildscripts.git</url>
+          </hudson.plugins.git.UserRemoteConfig>
+        </userRemoteConfigs>
+        <branches>
+          <hudson.plugins.git.BranchSpec>
+            <name>*/master</name>
+          </hudson.plugins.git.BranchSpec>
+        </branches>
+        <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
+        <submoduleCfg class="list"/>
+        <extensions>
+          <hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+            <relativeTargetDir>buildscripts</relativeTargetDir>
+          </hudson.plugins.git.extensions.impl.RelativeTargetDirectory>
+        </extensions>
+      </hudson.plugins.git.GitSCM>
+    </scms>
+  </scm>
+  <canRoam>true</canRoam>
+  <disabled>false</disabled>
+  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
+  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
+  <authToken>a12fde257cad123929237</authToken>
+  <triggers/>
+  <concurrentBuild>false</concurrentBuild>
+  <builders>
+    <hudson.tasks.Shell>
+      <command>echo &quot;Build it!&quot;</command>
+    </hudson.tasks.Shell>
+  </builders>
+  <publishers/>
+  <buildWrappers/>
+</project>
 EOF
 
 chown -R 1000:1000 /data/jenkins

@@ -24,4 +24,4 @@ if [ -z "$KUBECTL" ]; then
   KUBECTL="$(dirname $0)/kubectl.sh"
 fi
 
-${KUBECTL} set image --namespace="$NAMESPACE" deployment/phonebook-${pkg}${suffix} phonebook-${pkg}=kube-registry.kube-system.svc.cluster.local:5000/phonebook-${pkg}:1git${ver}
+${KUBECTL} set image --namespace="$NAMESPACE" deployment/phonebook-${pkg}${suffix} phonebook-${pkg}=kube-registry:5000/phonebook-${pkg}:1git${ver}

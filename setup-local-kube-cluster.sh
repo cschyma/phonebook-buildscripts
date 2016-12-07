@@ -147,7 +147,6 @@ kubectl describe rc kube-registry-v0 --namespace=kube-system >/dev/null 2>&1 || 
 [ req ]
 default_bits           = 2048
 distinguished_name     = req_distinguished_name
-x509_extensions        = v3_ca
 prompt                 = no
 
 [ req_distinguished_name ]
@@ -156,14 +155,8 @@ ST                     = Kubernetes
 L                      = Kubernetes
 O                      = Kubernetes
 OU                     = pingworks
-CN                     = kube-registry.kube-system.svc.cluster.local
+CN                     = kube-registry
 emailAddress           = test@email.address
-
-[v3_ca]
-subjectAltName         = @alt_names
-
-[alt_names]
-DNS.1                  = kube-registry
 EOF
     openssl req -x509 -config openssl-config -days 1825 -nodes -newkey rsa:2048 -keyout registry.key -out registry.crt > /dev/null
   )
@@ -238,13 +231,14 @@ spec:
     protocol: TCP
 
 EOF
-  cp /tmp/kube-registry/registry.crt /etc/docker/certs.d/kube-registry.kube-system.svc.cluster.local\:5000/ca.crt
+  mkdir -p /etc/docker/certs.d/kube-registry\:5000
+  cp /tmp/kube-registry/registry.crt /etc/docker/certs.d/kube-registry\:5000/ca.crt
   log_end
 )
 
 log_start "Configuring name resolution.."
-log_start "Configuring name resolution.."
 grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
+  echo "search ${NAMESPACE}.svc.cluster.local kube-system.svc.cluster.local" >> /etc/resolvconf/resolv.conf.d/head
   echo "nameserver ${CLUSTERDNS}" >> /etc/resolvconf/resolv.conf.d/head
   systemctl restart networking
 )
@@ -253,12 +247,12 @@ log_end
 log_start "Pulling and pushing images.."
 img="ws-jenkins:1.2"
 docker pull pingworks/$img
-docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img
-docker push kube-registry.kube-system.svc.cluster.local:5000/pingworks/$img
+docker tag pingworks/$img kube-registry:5000/pingworks/$img
+docker push kube-registry:5000/pingworks/$img
 img="ruby-phonebook:019ab7bab4cc"
 docker pull pingworks/$img
-docker tag pingworks/$img kube-registry.kube-system.svc.cluster.local:5000/$img
-docker push kube-registry.kube-system.svc.cluster.local:5000/$img
+docker tag pingworks/$img kube-registry:5000/$img
+docker push kube-registry:5000/$img
 log_end
 
 log_start "Creating namespaces.."
@@ -308,7 +302,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
         archive &quot;backend/*.deb&quot;
     }
     stage(&apos;CS:Application Image&apos;) {
-        withEnv([&quot;ARTEFACT_FILE=phonebook-backend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry.kube-system.svc.cluster.local:5000/phonebook-backend:1git\${VERSION}&quot;]) {
+        withEnv([&quot;ARTEFACT_FILE=phonebook-backend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry:5000/phonebook-backend:1git\${VERSION}&quot;]) {
             sh &apos;docker build --build-arg ARTEFACT_FILE=&quot;\$ARTEFACT_FILE&quot; -t \$TAG backend&apos;
             sh &apos;docker push \$TAG&apos;
         }
@@ -372,7 +366,7 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
         archive &quot;frontend/*.deb&quot;
     }
     stage(&apos;CS:Application Image&apos;) {
-        withEnv([&quot;ARTEFACT_FILE=phonebook-frontend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry.kube-system.svc.cluster.local:5000/phonebook-frontend:1git\${VERSION}&quot;]) {
+        withEnv([&quot;ARTEFACT_FILE=phonebook-frontend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry:5000/phonebook-frontend:1git\${VERSION}&quot;]) {
             sh &apos;docker build --build-arg ARTEFACT_FILE=&quot;\$ARTEFACT_FILE&quot; -t \$TAG frontend&apos;
             sh &apos;docker push \$TAG&apos;
         }
@@ -455,7 +449,7 @@ spec:
     spec:
       containers:
       - name: jenkins
-        image: kube-registry.kube-system.svc.cluster.local:5000/pingworks/ws-jenkins:1.2
+        image: kube-registry:5000/pingworks/ws-jenkins:1.2
         volumeMounts:
         - name: jenkins-workspace
           mountPath: /var/jenkins_home/workspace

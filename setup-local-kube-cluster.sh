@@ -10,8 +10,8 @@ APISERVER="100.64.0.1"
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME
 
-PBFE="61da4ca"
-PBBE="ee5a03f"
+PBFE="e8430b9"
+PBBE="c66dab7"
 
 function log_start {
   echo "####################################"

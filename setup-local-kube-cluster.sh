@@ -240,6 +240,7 @@ log_start "Configuring name resolution.."
 grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
   echo "search ${NAMESPACE}.svc.cluster.local kube-system.svc.cluster.local" >> /etc/resolvconf/resolv.conf.d/head
   echo "nameserver ${CLUSTERDNS}" >> /etc/resolvconf/resolv.conf.d/head
+  echo "nameserver 8.8.8.8" >> /etc/resolvconf/resolv.conf.d/head
   systemctl restart networking
 )
 log_end
@@ -278,7 +279,7 @@ cat << EOF >/data/jenkins/jobs/backend/config.xml
         <hudson.model.StringParameterDefinition>
           <name>VERSION</name>
           <description></description>
-          <defaultValue></defaultValue>
+          <defaultValue>ee5a03f</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>
@@ -342,7 +343,7 @@ cat << EOF > /data/jenkins/jobs/frontend/config.xml
         <hudson.model.StringParameterDefinition>
           <name>VERSION</name>
           <description></description>
-          <defaultValue></defaultValue>
+          <defaultValue>589a488</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>

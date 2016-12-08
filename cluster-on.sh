@@ -40,7 +40,7 @@ log_end "done."
 
 log_start "Waiting for cluster to start.."
 sleep 10
-while ! kubectl get pods --namespace kube-system 2>&1 | grep 'kube-dns.*3/3.*Running' > /dev/null; do
+while ! nslookup -timeout=1 -retry=1 kubernetes.default.svc.cluster.local 100.64.0.10 > /dev/null 2>&1; do
   echo -n '.'
   sleep 5;
 done

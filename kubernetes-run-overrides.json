@@ -12,7 +12,7 @@
     "containers": [
       {
         "name": "__NAME__",
-        "image": "kube-registry:5000/__IMAGE__",
+        "image": "registry:5000/__IMAGE__",
         "command": __CMD__,
         "volumeMounts": [{
           "mountPath": "/src",

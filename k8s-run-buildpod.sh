@@ -33,7 +33,7 @@ $KUBECTL run $name \
   --certificate-authority="/run/secrets/kubernetes.io/serviceaccount/ca.crt" \
   --token="$(</run/secrets/kubernetes.io/serviceaccount/token)" \
   --namespace="$NAMESPACE" \
-  --image=kube-registry:5000/${img} \
+  --image=registry:5000/${img} \
   --restart=Never \
   --overrides="$(sed -e "s;__NAME__;$name;g" \
 	-e "s;__IMAGE__;$img;g" \

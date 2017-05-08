@@ -13,6 +13,6 @@ spec:
     spec:
       containers:
       - name: phonebook-frontend
-        image: kube-registry:5000/phonebook-frontend:__IMG_VERSION__
+        image: registry:5000/phonebook-frontend:__IMG_VERSION__
         ports:
         - containerPort: 9292

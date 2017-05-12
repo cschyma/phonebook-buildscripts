@@ -12,5 +12,5 @@ spec:
   ports:
   - name: phonebook-frontend
     port: 80
-    targetPort: 9292
+    targetPort: 80
     protocol: TCP

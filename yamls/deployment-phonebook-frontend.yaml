@@ -15,4 +15,4 @@ spec:
       - name: phonebook-frontend
         image: registry:5000/__NAMESPACE__/phonebook-frontend:__IMG_VERSION__
         ports:
-        - containerPort: 9292
+        - containerPort: 80

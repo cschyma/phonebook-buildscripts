@@ -71,18 +71,28 @@ function package {
   # Build debian package
   mkdir -p $DIR/target
   cd $DIR/target
-  fpm -s dir \
-  	-t deb \
-    -C $DIR \
-  	-n "phonebook-$PKG" \
-  	-v 1git${VERSION} \
-  	--after-install ../debian/postinst.sh \
-  	--before-remove ../debian/prerm.sh \
-  	--exclude opt/phonebook-$PKG/.git \
-  	--exclude opt/phonebook-$PKG/coverage \
-  	--exclude opt/phonebook-$PKG/debian \
-  	.=/opt/phonebook-$PKG \
-  	./debian/init.d/phonebook-$PKG=/etc/init.d/phonebook-$PKG
+  if [ "$PKG" = "frontend" ]; then
+    fpm -s dir \
+    	-t deb \
+      -C $DIR \
+    	-n "phonebook-$PKG" \
+    	-v 1git${VERSION} \
+    	public/index.html=/usr/share/nginx/html/index.html \
+      public/assets=/usr/share/nginx/html/
+  elif [ "$PKG" = "backend" ]; then
+    fpm -s dir \
+    	-t deb \
+      -C $DIR \
+    	-n "phonebook-$PKG" \
+    	-v 1git${VERSION} \
+    	--after-install ../debian/postinst.sh \
+    	--before-remove ../debian/prerm.sh \
+    	--exclude opt/phonebook-$PKG/.git \
+    	--exclude opt/phonebook-$PKG/coverage \
+    	--exclude opt/phonebook-$PKG/debian \
+    	.=/opt/phonebook-$PKG \
+    	./debian/init.d/phonebook-$PKG=/etc/init.d/phonebook-$PKG
+  fi
   echo "done."
 }
 

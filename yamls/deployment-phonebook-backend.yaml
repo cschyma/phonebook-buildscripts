@@ -13,7 +13,7 @@ spec:
     spec:
       containers:
       - name: phonebook-backend
-        image: registry:5000/phonebook-backend:__IMG_VERSION__
+        image: registry:5000/__NAMESPACE__/phonebook-backend:__IMG_VERSION__
         ports:
         - containerPort: 9293
       - name: phonebook-redis

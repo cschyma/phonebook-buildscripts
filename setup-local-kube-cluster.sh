@@ -78,7 +78,7 @@ EOF
   cat << EOF >/etc/systemd/system/docker.service.d/override.conf
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd -H fd:// -H localhost \$DOCKER_OPTS
+ExecStart=/usr/bin/dockerd -H fd:// -H localhost -H 10.0.2.15 \$DOCKER_OPTS
 EOF
   systemctl daemon-reload
   systemctl restart docker
@@ -329,6 +329,8 @@ spec:
           value: "$NAMESPACE"
         - name: FQDN
           value: "jenkins.$NAMESPACE.svc.cluster.local"
+        - name: DOCKER_HOST
+          value: "tcp://10.0.2.15:2375"
       volumes:
       - name: jenkins-workspace
         persistentVolumeClaim:

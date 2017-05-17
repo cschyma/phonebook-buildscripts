@@ -17,6 +17,6 @@ spec:
         ports:
         - containerPort: 9293
       - name: phonebook-redis
-        image: redis
+        image: registry:5000/infra/redis:3.0.7
         ports:
         - containerPort: 6379

@@ -250,8 +250,8 @@ log_start "Deploying Jenkins pod and service.."
 mkdir -p /data/jenkins/{workspace,jobs/backend-pipeline,jobs/frontend-pipeline,jobs/backend,jobs/frontend}
 chmod 777 /data/jenkins/workspace
 ln -s /data/jenkins /var/jenkins_home
-cp resources/backend-pipeline.xml /data/jenkins/jobs/backend-pipeline/config.xml
-cp resources/frontend-pipeline.xml /data/jenkins/jobs/frontend-pipeline/config.xml
+sed -e "s;__PBBE__;$PBBE;" resources/backend-pipeline.xml > /data/jenkins/jobs/backend-pipeline/config.xml
+sed -e "s;__PBFE__;$PBFE;" resources/frontend-pipeline.xml > /data/jenkins/jobs/frontend-pipeline/config.xml
 
 chown -R 1000:1000 /data/jenkins
 
@@ -311,7 +311,7 @@ spec:
     spec:
       containers:
       - name: jenkins
-        image: pingworks/ws-jenkins:1.5.4-local
+        image: pingworks/ws-jenkins:1.5.4
         volumeMounts:
         - name: jenkins-workspace
           mountPath: /var/jenkins_home/workspace

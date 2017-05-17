@@ -1,0 +1,79 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<flow-definition plugin="workflow-job@2.10">
+  <actions/>
+  <description></description>
+  <keepDependencies>false</keepDependencies>
+  <properties>
+    <hudson.model.ParametersDefinitionProperty>
+      <parameterDefinitions>
+        <hudson.model.StringParameterDefinition>
+          <name>VERSION</name>
+          <description></description>
+          <defaultValue>$PBBE</defaultValue>
+        </hudson.model.StringParameterDefinition>
+      </parameterDefinitions>
+    </hudson.model.ParametersDefinitionProperty>
+    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
+      <autoRebuild>false</autoRebuild>
+      <rebuildDisabled>false</rebuildDisabled>
+    </com.sonyericsson.rebuild.RebuildSettings>
+    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+      <triggers/>
+    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
+  </properties>
+  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.30">
+    <script>podTemplate(label: &apos;pipeline-pod&apos;, cloud: &apos;kubernetes&apos;) {
+    node(&apos;pipeline-pod&apos;) {
+        stage(&apos;CS:Preparation&apos;) {
+            checkout([$class: &apos;GitSCM&apos;, branches: [[name: &apos;$VERSION&apos;]], extensions: [[$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;backend&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-backend.git&apos;]]])
+            checkout([$class: &apos;GitSCM&apos;, extensions: [[$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;buildscripts&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-buildscripts.git&apos;]]])
+        }
+        stage(&apos;CS:Build &amp; Test&apos;) {
+            container(&apos;ruby-phonebook&apos;) {
+                sh &quot;cd backend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;
+            }
+        }
+        stage(&apos;CS:Results&apos;) {
+            //junit &apos;backend/rspec*.xml&apos;
+            archive &quot;backend/target/*.deb&quot;
+        }
+        stage(&apos;CS:Application Image&apos;) {
+            container(&apos;docker&apos;) {
+                file =&quot;phonebook-backend_1git${VERSION}_amd64.deb&quot;
+                reg = &apos;registry:5000&apos;
+                tag = &quot;phonebook-backend:1git${VERSION}&quot;
+                tag = reg + &apos;/${NAMESPACE}/&apos; + tag
+                params = &quot;--build-arg ARTEFACT_FILE=${file}&quot;
+
+                sh &quot;docker build -t $tag $params backend&quot;
+                img=docker.image(tag)
+                docker.withRegistry(&apos;https://&apos; + reg) {
+                    img.push()
+                }
+            }
+        }
+        stage(&apos;ATS:Preparation&apos;) {
+            container(&apos;kubectl&apos;) {
+                sh &quot;buildscripts/deploy-phonebook.sh backend ${VERSION}&quot;
+                sh &quot;buildscripts/wait-for-pod-state.sh app=phonebook-backend,stage=pipeline Running 30&quot;
+            }
+        }
+        stage(&apos;ATS:Test&apos;) {
+            container(&apos;ruby-phonebook&apos;) {
+                sh &quot;cd backend &amp;&amp; ../buildscripts/pbuilder.sh integration-test&quot;
+                junit &apos;backend/target/rspec*.xml&apos;
+            }
+        }
+        stage(&apos;ATS:Cleanup&apos;) {
+            container(&apos;kubectl&apos;) {
+                sh &quot;buildscripts/undeploy-phonebook.sh backend $VERSION&quot;
+            }
+        }
+    }
+}
+</script>
+    <sandbox>true</sandbox>
+  </definition>
+  <triggers/>
+  <authToken>a12fde257cad123929237</authToken>
+</flow-definition>

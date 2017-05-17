@@ -2,16 +2,18 @@
 
 set -e
 
-KUBEVERSION="v1.4.5"
-SVCCIDR="100.64.0.0/12"
-CLUSTERDNS="100.64.0.10"
-APISERVER="100.64.0.1"
+KUBEVERSION="v1.6.2"
+SVCCIDR="10.96.0.0/12"
+SVCDOMAIN="cluster.local"
+CLUSTERDNS="10.96.0.10"
+APISERVER="10.96.0.1"
+SEARCHDOMAIN="infra.svc.cluster.local kube-system.svc.cluster.local"
 
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME
 
-PBFE="6d39a2e"
-PBBE="86bbe34"
+PBFE="86520c3"
+PBBE="5adb548"
 
 function log_start {
   echo "####################################"
@@ -38,92 +40,76 @@ id $USERNAME | grep docker > /dev/null || (
   log_end
 )
 
+log_start "Installing kubernetes.."
 dpkg -l kubelet >/dev/null 2>&1 || (
-  log_start "Installing kubernetes.."
-  dpkg -l apt-transport-https > /dev/null || apt-get update && apt-get install -y apt-transport-https
-  [ -d /etc/apt/sources.list.d/kubernetes.list ] \
-    || cat <<EOF > /etc/apt/sources.list.d/kubernetes.list
-deb http://apt.kubernetes.io/ kubernetes-xenial main
-EOF
-  apt-key list | grep '2048R/A7317B0F' >/dev/null \
-    || curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
-  apt-get update && apt-get install -y docker.io kubelet kubeadm kubectl kubernetes-cni
+  dpkg -l apt-transport-https > /dev/null 2>&1 || apt-get update && apt-get install -y apt-transport-https
+  apt-key list | grep 2048R/A7317B0F >/dev/null || curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+  [ -e /etc/apt/sources.list.d/kubernetes.list ] || (
+    echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' >/etc/apt/sources.list.d/kubernetes.list
+    apt-get update
+  )
+  dpkg -l docker-engine > /dev/null 2>&1 || apt-get install -y docker-engine
+  dpkg -l kubelet > /dev/null 2>&1 || apt-get install -y kubelet kubeadm kubectl kubernetes-cni
 
+  [ -d /etc/kubernetes/pki ] || (
+    grep 'cluster-dns=${CLUSTERDNS}' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf >/dev/null || (
+      sed -i -e "s;--cluster-dns=[0-9\.]* ;--cluster-dns=${CLUSTERDNS} ;" \
+          -e "s;--cluster-domain=cluster.local;--cluster-domain=${SVCDOMAIN};" \
+          /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
+      systemctl daemon-reload
+      systemctl restart kubelet
+      sleep 10
+    )
+  )
+)
+log_end
+
+log_start "Setting up docker installation.."
+[ -e /etc/systemd/system/docker.socket.d/override.conf ] || (
   chmod o+rw /run/docker.sock
   mkdir -p /etc/systemd/system/docker.socket.d/
   cat << EOF > /etc/systemd/system/docker.socket.d/override.conf
 [Socket]
 SocketMode=0666
 EOF
-
-  grep 'cluster-dns=${CLUSTERDNS}' /etc/systemd/system/kubelet.service.d/10-kubeadm.conf >/dev/null || (
-    sed -i -e "s;--cluster-dns=[0-9\.]* ;--cluster-dns=${CLUSTERDNS} ;" /etc/systemd/system/kubelet.service.d/10-kubeadm.conf
-    systemctl daemon-reload
-    systemctl restart kubelet
-  )
-
-  [ -e /etc/systemd/system/docker.service.d/override.conf ] || (
-    mkdir -p /etc/systemd/system/docker.service.d/
-    cat << EOF >/etc/systemd/system/docker.service.d/override.conf
+)
+[ -e /etc/systemd/system/docker.service.d/override.conf ] || (
+  mkdir -p /etc/systemd/system/docker.service.d/
+  cat << EOF >/etc/systemd/system/docker.service.d/override.conf
 [Service]
 ExecStart=
 ExecStart=/usr/bin/dockerd -H fd:// -H localhost \$DOCKER_OPTS
 EOF
-    systemctl daemon-reload
-    systemctl restart docker
-  )
-  log_end
+  systemctl daemon-reload
+  systemctl restart docker
 )
 
+log_start "Initializing cluster.."
 [ -d /etc/kubernetes/pki ] || (
-  log_start "Initializing Cluster.."
   kubeadm init \
-    --use-kubernetes-version ${KUBEVERSION} \
-    --service-cidr ${SVCCIDR} && sleep 2
-  kubectl taint nodes --all dedicated-
-  log_end
-)
-
-[ -e /etc/kubernetes/pki/basic-auth.csv ] \
-  || echo 'admin,admin,1000' > /etc/kubernetes/pki/basic-auth.csv
-grep 'basic-auth-file' /etc/kubernetes/manifests/kube-apiserver.json >/dev/null || (
-  log_start "Configuring basic-auth for api server.."
-  oldpid=$(pidof kube-apiserver)
-  sed -i -e 's;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",\n          "--basic-auth-file=/etc/kubernetes/pki/basic-auth.csv",;' /etc/kubernetes/manifests/kube-apiserver.json
-  kill -HUP $oldpid
-  echo -n "Waiting for kube-apiserver to restart"
-  while [ "$(pidof kube-apiserver)" = "$oldpid" ]; do
-    echo -n "."
-    sleep 1
-  done
-  echo "waiting 20s seconds for api server to be available again."
-  sleep 20
-  echo
-  log_end
+    --skip-preflight-checks \
+    --kubernetes-version ${KUBEVERSION} \
+    --service-cidr ${SVCCIDR} \
+    --service-dns-domain ${SVCDOMAIN} \
+    | tee kubeinit.out && sleep 2
+  mkdir -p ${HOME}/.kube
+  cp -a /etc/kubernetes/admin.conf ${HOME}/.kube/config
+  kubectl taint nodes --all node-role.kubernetes.io/master-
 )
 
 kubectl describe daemonset weave-net --namespace=kube-system > /dev/null 2>&1 || (
   log_start "Setting up pod network.."
-  kubectl apply -f https://git.io/weave-kube
+  curl -L https://git.io/weave-kube-1.6 > weave-kube-1.6.yaml
+  sed -i -e 's;name: weave$;name: weave\n          env:\n            - name: IPALLOC_RANGE\n              value: 10.48.0.0/16;' weave-kube-1.6.yaml
+  kubectl apply -f weave-kube-1.6.yaml
   log_end
 )
 
-kubectl describe deployment kubernetes-dashboard --namespace=kube-system >/dev/null 2>&1 || (
+kubectl get deployment kubernetes-dashboard --namespace=kube-system >/dev/null 2>&1 || (
   log_start "Setting up dashboard.."
-  kubectl apply -f https://rawgit.com/kubernetes/dashboard/master/src/deploy/kubernetes-dashboard.yaml
+  kubectl create -f https://raw.githubusercontent.com/kubernetes/dashboard/master/src/deploy/kubernetes-dashboard.yaml
   log_end
 )
-
-log_start "Configuring basic-auth for api server.."
-[ -e /etc/kubernetes/pki/basic-auth.csv ] \
-  || echo 'admin,admin,1000' > /etc/kubernetes/pki/basic-auth.csv
-grep 'basic-auth-file' /etc/kubernetes/manifests/kube-apiserver.json >/dev/null || (
-  sed -i -e 's;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",;"--token-auth-file=/etc/kubernetes/pki/tokens.csv",\n          "--basic-auth-file=/etc/kubernetes/pki/basic-auth.csv",;' /etc/kubernetes/manifests/kube-apiserver.json
-  kill -HUP $(pidof kube-apiserver)
-  echo "waiting 20s for kube-apiserver to restart"
-  sleep 20
-)
-log_end
 
 log_start "Waiting for cluster pods to become ready.."
 output=$(kubectl get pods --all-namespaces)
@@ -141,11 +127,18 @@ log_end
 
 [ -d ~/.kube ] && sudo chown -R $USERNAME:$USERNAME ~/.kube
 
-kubectl describe rc kube-registry-v0 --namespace=kube-system >/dev/null 2>&1 || (
+log_start "Creating namespaces.."
+for ns in $NAMESPACE infra prod; do
+  kubectl get namespace $ns >/dev/null || kubectl create namespace $ns
+done
+kubectl get rolebinding sa-default-edit --namespace=$USERNAME || kubectl create rolebinding sa-default-edit --clusterrole=edit --serviceaccount=$USERNAME:default --namespace=$USERNAME
+log_end
+
+kubectl describe rc registry --namespace=infra >/dev/null 2>&1 || (
   log_start "Setting up kubernetes registry.."
-  mkdir -p /tmp/kube-registry
-  [ -e /tmp/kube-registry/registry.key ] || (
-    cd /tmp/kube-registry
+  mkdir -p /tmp/registry
+  [ -e /tmp/registry/registry.key ] || (
+    cd /tmp/registry
     cat << EOF >openssl-config
 [ req ]
 default_bits           = 2048
@@ -158,39 +151,36 @@ ST                     = Kubernetes
 L                      = Kubernetes
 O                      = Kubernetes
 OU                     = pingworks
-CN                     = kube-registry
+CN                     = registry
 emailAddress           = test@email.address
 EOF
     openssl req -x509 -config openssl-config -days 1825 -nodes -newkey rsa:2048 -keyout registry.key -out registry.crt > /dev/null
   )
-  kubectl --namespace=kube-system describe secret registry-tls-secret > /dev/null || (
-    cd /tmp/kube-registry
-    kubectl --namespace=kube-system create secret generic registry-tls-secret --from-file=registry.crt=registry.crt --from-file=registry.key=registry.key
+  kubectl --namespace=infra describe secret registry-tls-secret > /dev/null || (
+    cd /tmp/registry
+    kubectl --namespace=infra create secret generic registry-tls-secret --from-file=registry.crt=registry.crt --from-file=registry.key=registry.key
   )
-  mkdir -p /data/kube-registry
+  mkdir -p /data/registry
   cat <<EOF | kubectl apply -f -
 apiVersion: v1
 kind: ReplicationController
 metadata:
-  name: kube-registry-v0
-  namespace: kube-system
+  name: registry
+  namespace: infra
   labels:
-    k8s-app: kube-registry
-    version: v0
+    k8s-app: registry
 spec:
   replicas: 1
   selector:
-    k8s-app: kube-registry
-    version: v0
+    k8s-app: registry
   template:
     metadata:
       labels:
-        k8s-app: kube-registry
-        version: v0
+        k8s-app: registry
     spec:
       containers:
       - name: registry
-        image: registry:2
+        image: registry:2.6.1
         env:
         - name: REGISTRY_HTTP_ADDR
           value: :5000
@@ -212,7 +202,7 @@ spec:
       volumes:
       - name: image-store
         hostPath:
-          path: /data/kube-registry
+          path: /data/registry
       - name: cert-dir
         secret:
           secretName: registry-tls-secret
@@ -220,28 +210,28 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  name: kube-registry
-  namespace: kube-system
+  name: registry
+  namespace: infra
   labels:
-    k8s-app: kube-registry
-    kubernetes.io/name: "KubeRegistry"
+    k8s-app: registry
+    kubernetes.io/name: "Registry"
 spec:
   selector:
-    k8s-app: kube-registry
+    k8s-app: registry
   ports:
   - name: registry
     port: 5000
     protocol: TCP
 
 EOF
-  mkdir -p /etc/docker/certs.d/kube-registry\:5000
-  cp /tmp/kube-registry/registry.crt /etc/docker/certs.d/kube-registry\:5000/ca.crt
+  mkdir -p /etc/docker/certs.d/registry\:5000
+  cp /tmp/registry/registry.crt /etc/docker/certs.d/registry\:5000/ca.crt
   log_end
 )
 
 log_start "Configuring name resolution.."
 grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
-  echo "search ${NAMESPACE}.svc.cluster.local kube-system.svc.cluster.local" >> /etc/resolvconf/resolv.conf.d/head
+  echo "search ${NAMESPACE}.svc.cluster.local infra.svc.cluster.local kube-system.svc.cluster.local" >> /etc/resolvconf/resolv.conf.d/head
   echo "nameserver ${CLUSTERDNS}" >> /etc/resolvconf/resolv.conf.d/head
   echo "nameserver 8.8.8.8" >> /etc/resolvconf/resolv.conf.d/head
   systemctl restart networking
@@ -249,261 +239,19 @@ grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
 log_end
 
 log_start "Pulling and pushing images.."
-img="ws-jenkins:1.2"
-docker pull pingworks/$img
-docker tag pingworks/$img kube-registry:5000/pingworks/$img
-docker push kube-registry:5000/pingworks/$img
-img="ruby-phonebook:019ab7bab4cc"
-docker pull pingworks/$img
-docker tag pingworks/$img kube-registry:5000/$img
-docker push kube-registry:5000/$img
-imgl="ruby-phonebook:latest"
-docker tag pingworks/$img pingworks/$imgl
-docker tag pingworks/$imgl kube-registry:5000/$imgl
-docker push kube-registry:5000/$imgl
-log_end
-
-log_start "Creating namespaces.."
-for ns in $NAMESPACE prod; do
-  kubectl get namespace $ns >/dev/null || kubectl create namespace $ns
+for img in pingworks/ws-docker:1.11.2-1 pingworks/ws-kubectl:1.6.2-2 pingworks/ruby-phonebook:019ab7bab4cc library/nginx:1.13.0; do
+  docker pull $img
+  docker tag $img registry:5000/infra/${img#*/}
+  docker push registry:5000/infra/${img#*/}
 done
 log_end
 
 log_start "Deploying Jenkins pod and service.."
 mkdir -p /data/jenkins/{workspace,jobs/backend-pipeline,jobs/frontend-pipeline,jobs/backend,jobs/frontend}
-cat << EOF >/data/jenkins/jobs/backend-pipeline/config.xml
-<?xml version='1.0' encoding='UTF-8'?>
-<flow-definition plugin="workflow-job@2.7">
-  <actions/>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.2">
-      <gitLabConnection>gitlab</gitLabConnection>
-    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>VERSION</name>
-          <description></description>
-          <defaultValue>$PBBE</defaultValue>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-      <triggers/>
-    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-  </properties>
-  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.18">
-    <script>node {
-    stage(&apos;CS:Preparation&apos;) {
-        checkout([\$class: &apos;GitSCM&apos;, branches: [[name: &apos;\$VERSION&apos;]], extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;backend&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-backend.git&apos;]]])
-        checkout([\$class: &apos;GitSCM&apos;, extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;buildscripts&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-buildscripts.git&apos;]]])
-    }
-    stage(&apos;CS:Build &amp; Test&apos;) {
-        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-backend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-backend &quot;cd /src/\${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
-        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-backend&apos;
-    }
-    stage(&apos;CS:Results&apos;) {
-        //junit &apos;backend/rspec*.xml&apos;
-        archive &quot;backend/*.deb&quot;
-    }
-    stage(&apos;CS:Application Image&apos;) {
-        withEnv([&quot;ARTEFACT_FILE=phonebook-backend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry:5000/phonebook-backend:1git\${VERSION}&quot;]) {
-            sh &apos;docker build --build-arg ARTEFACT_FILE=&quot;\$ARTEFACT_FILE&quot; -t \$TAG backend&apos;
-            sh &apos;docker push \$TAG&apos;
-        }
-    }
-    stage(&apos;ATS:Preparation&apos;) {
-        sh &apos;buildscripts/deploy-phonebook.sh backend \$VERSION&apos;
-        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-backend,stage=pipeline Running 30&apos;
-    }
-    stage(&apos;ATS:Test&apos;) {
-        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-test-backend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-test-backend &quot;cd /src/\${JOB_NAME}/backend &amp;&amp; ../buildscripts/pbuilder.sh integration-test&quot;&apos;
-        junit &apos;backend/target/rspec*.xml&apos;
-    }
-    stage(&apos;ATS:Cleanup&apos;) {
-        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-test-backend&apos;
-        sh &apos;buildscripts/undeploy-phonebook.sh backend \$VERSION&apos;
-    }
-}</script>
-    <sandbox>true</sandbox>
-  </definition>
-  <triggers/>
-  <authToken>a12fde257cad123929237</authToken>
-</flow-definition>
-EOF
-cat << EOF > /data/jenkins/jobs/frontend-pipeline/config.xml
-<?xml version='1.0' encoding='UTF-8'?>
-<flow-definition plugin="workflow-job@2.7">
-  <actions/>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty plugin="gitlab-plugin@1.4.2">
-      <gitLabConnection>gitlab</gitLabConnection>
-    </com.dabsquared.gitlabjenkins.connection.GitLabConnectionProperty>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>VERSION</name>
-          <description></description>
-          <defaultValue>$PBFE</defaultValue>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-    <org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-      <triggers/>
-    </org.jenkinsci.plugins.workflow.job.properties.PipelineTriggersJobProperty>
-  </properties>
-  <definition class="org.jenkinsci.plugins.workflow.cps.CpsFlowDefinition" plugin="workflow-cps@2.18">
-    <script>node {
-    stage(&apos;CS:Preparation&apos;) {
-        checkout([\$class: &apos;GitSCM&apos;, branches: [[name: &apos;\$VERSION&apos;]], extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;frontend&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-frontend.git&apos;]]])
-        checkout([\$class: &apos;GitSCM&apos;, extensions: [[\$class: &apos;RelativeTargetDirectory&apos;, relativeTargetDir: &apos;buildscripts&apos;]], userRemoteConfigs: [[url: &apos;https://github.com/pingworks/phonebook-buildscripts.git&apos;]]])
-    }
-    stage(&apos;CS:Build &amp; Test&apos;) {
-        sh &apos;buildscripts/k8s-run-buildpod.sh ruby-phonebook:019ab7bab4cc phonebook-build-frontend&apos;
-        sh &apos;buildscripts/k8s-exec-buildstep.sh phonebook-build-frontend &quot;cd /src/\${JOB_NAME}/frontend &amp;&amp; ../buildscripts/pbuilder.sh clean package&quot;&apos;
-        sh &apos;buildscripts/k8s-rm-buildpod.sh phonebook-build-frontend&apos;
-    }
-    stage(&apos;CS:Results&apos;) {
-        //junit &apos;frontend/rspec*.xml&apos;
-        archive &quot;frontend/*.deb&quot;
-    }
-    stage(&apos;CS:Application Image&apos;) {
-        withEnv([&quot;ARTEFACT_FILE=phonebook-frontend_1git\${VERSION}_amd64.deb&quot;,&quot;TAG=kube-registry:5000/phonebook-frontend:1git\${VERSION}&quot;]) {
-            sh &apos;docker build --build-arg ARTEFACT_FILE=&quot;\$ARTEFACT_FILE&quot; -t \$TAG frontend&apos;
-            sh &apos;docker push \$TAG&apos;
-        }
-    }
-    stage(&apos;ATS:Preparation&apos;) {
-        sh &apos;buildscripts/deploy-phonebook.sh frontend \$VERSION&apos;
-        sh &apos;buildscripts/wait-for-pod-state.sh app=phonebook-frontend,stage=pipeline Running 30&apos;
-    }
-    stage(&apos;ATS:Test&apos;) {
-        retry(3) {
-            sh &apos;sleep 3 &amp;&amp; curl http://phonebook-frontend/ | grep &quot;&lt;title&gt;Phonebook&lt;/title&gt;&quot;&apos;
-        }
-    }
-    stage(&apos;ATS:Cleanup&apos;) {
-        sh &apos;buildscripts/undeploy-phonebook.sh frontend \$VERSION&apos;
-    }
-}</script>
-    <sandbox>true</sandbox>
-  </definition>
-  <triggers/>
-  <authToken>a12fde257cad123929237</authToken>
-</flow-definition>
-EOF
-cat << EOF >/data/jenkins/jobs/backend/config.xml
-<?xml version='1.0' encoding='UTF-8'?>
-<project>
-  <actions/>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
-      <autoRebuild>false</autoRebuild>
-      <rebuildDisabled>false</rebuildDisabled>
-    </com.sonyericsson.rebuild.RebuildSettings>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>VERSION</name>
-          <description></description>
-          <defaultValue>$PBBE</defaultValue>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-  </properties>
-  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.0">
-    <configVersion>2</configVersion>
-    <userRemoteConfigs>
-      <hudson.plugins.git.UserRemoteConfig>
-        <url>https://github.com/pingworks/phonebook-backend.git</url>
-      </hudson.plugins.git.UserRemoteConfig>
-    </userRemoteConfigs>
-    <branches>
-      <hudson.plugins.git.BranchSpec>
-        <name>\${VERSION}</name>
-      </hudson.plugins.git.BranchSpec>
-    </branches>
-    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-    <submoduleCfg class="list"/>
-    <extensions/>
-  </scm>
-  <canRoam>true</canRoam>
-  <disabled>false</disabled>
-  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
-  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
-  <authToken>a12fde257cad123929237</authToken>
-  <triggers/>
-  <concurrentBuild>false</concurrentBuild>
-  <builders>
-    <hudson.tasks.Shell>
-      <command>echo &quot;Build it!&quot;</command>
-    </hudson.tasks.Shell>
-  </builders>
-  <publishers/>
-  <buildWrappers/>
-</project>
-EOF
-cat << EOF >/data/jenkins/jobs/frontend/config.xml
-<?xml version='1.0' encoding='UTF-8'?>
-<project>
-  <actions/>
-  <description></description>
-  <keepDependencies>false</keepDependencies>
-  <properties>
-    <com.sonyericsson.rebuild.RebuildSettings plugin="rebuild@1.25">
-      <autoRebuild>false</autoRebuild>
-      <rebuildDisabled>false</rebuildDisabled>
-    </com.sonyericsson.rebuild.RebuildSettings>
-    <hudson.model.ParametersDefinitionProperty>
-      <parameterDefinitions>
-        <hudson.model.StringParameterDefinition>
-          <name>VERSION</name>
-          <description></description>
-          <defaultValue>$PBFE</defaultValue>
-        </hudson.model.StringParameterDefinition>
-      </parameterDefinitions>
-    </hudson.model.ParametersDefinitionProperty>
-  </properties>
-  <scm class="hudson.plugins.git.GitSCM" plugin="git@3.0.0">
-    <configVersion>2</configVersion>
-    <userRemoteConfigs>
-      <hudson.plugins.git.UserRemoteConfig>
-        <url>https://github.com/pingworks/phonebook-frontend.git</url>
-      </hudson.plugins.git.UserRemoteConfig>
-    </userRemoteConfigs>
-    <branches>
-      <hudson.plugins.git.BranchSpec>
-        <name>\${VERSION}</name>
-      </hudson.plugins.git.BranchSpec>
-    </branches>
-    <doGenerateSubmoduleConfigurations>false</doGenerateSubmoduleConfigurations>
-    <submoduleCfg class="list"/>
-    <extensions/>
-  </scm>
-  <canRoam>true</canRoam>
-  <disabled>false</disabled>
-  <blockBuildWhenDownstreamBuilding>false</blockBuildWhenDownstreamBuilding>
-  <blockBuildWhenUpstreamBuilding>false</blockBuildWhenUpstreamBuilding>
-  <authToken>a12fde257cad123929237</authToken>
-  <triggers/>
-  <concurrentBuild>false</concurrentBuild>
-  <builders>
-    <hudson.tasks.Shell>
-      <command>echo &quot;Build it!&quot;</command>
-    </hudson.tasks.Shell>
-  </builders>
-  <publishers/>
-  <buildWrappers/>
-</project>
-EOF
+chmod 777 /data/jenkins/workspace
+ln -s /data/jenkins /var/jenkins_home
+cp resources/backend-pipeline.xml /data/jenkins/jobs/backend-pipeline/config.xml
+cp resources/frontend-pipeline.xml /data/jenkins/jobs/frontend-pipeline/config.xml
 
 chown -R 1000:1000 /data/jenkins
 
@@ -563,7 +311,7 @@ spec:
     spec:
       containers:
       - name: jenkins
-        image: kube-registry:5000/pingworks/ws-jenkins:1.2
+        image: pingworks/ws-jenkins:1.5.4-local
         volumeMounts:
         - name: jenkins-workspace
           mountPath: /var/jenkins_home/workspace

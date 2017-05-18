@@ -48,6 +48,7 @@ dpkg -l kubelet >/dev/null 2>&1 || (
     echo 'deb http://apt.kubernetes.io/ kubernetes-xenial main' >/etc/apt/sources.list.d/kubernetes.list
     apt-get update
   )
+  apt-mark unhold kubectl
   dpkg -l docker-engine > /dev/null 2>&1 || apt-get install -y docker-engine
   dpkg -l kubelet > /dev/null 2>&1 || apt-get install -y kubelet kubeadm kubectl kubernetes-cni
 
@@ -78,7 +79,7 @@ EOF
   cat << EOF >/etc/systemd/system/docker.service.d/override.conf
 [Service]
 ExecStart=
-ExecStart=/usr/bin/dockerd -H fd:// -H localhost -H 10.0.2.15 \$DOCKER_OPTS
+ExecStart=/usr/bin/docker daemon -H fd:// -H localhost:2375 -H 10.0.2.15:2375 \$DOCKER_OPTS
 EOF
   systemctl daemon-reload
   systemctl restart docker
@@ -239,7 +240,7 @@ grep "nameserver ${CLUSTERDNS}" /etc/resolvconf/resolv.conf.d/head || (
 log_end
 
 log_start "Pulling and pushing images.."
-for img in pingworks/ws-docker:1.11.2-1 pingworks/ws-kubectl:1.6.2-2 pingworks/ruby-phonebook:019ab7bab4cc library/nginx:1.13.0; do
+for img in pingworks/ws-docker:1.11.2-1 pingworks/ws-kubectl:1.6.2-2 pingworks/ruby-phonebook:019ab7bab4cc library/nginx:1.13.0 library/redis:3.0.7; do
   docker pull $img
   docker tag $img registry:5000/infra/${img#*/}
   docker push registry:5000/infra/${img#*/}

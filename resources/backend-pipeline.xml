@@ -9,7 +9,7 @@
         <hudson.model.StringParameterDefinition>
           <name>VERSION</name>
           <description></description>
-          <defaultValue>$PBBE</defaultValue>
+          <defaultValue>__PBBE__</defaultValue>
         </hudson.model.StringParameterDefinition>
       </parameterDefinitions>
     </hudson.model.ParametersDefinitionProperty>

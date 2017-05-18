@@ -1,0 +1,26 @@
+node(){
+    stage('CS:Preparation') {
+        env.sha1 = params.VERSION.take(7)
+        checkout([$class: 'GitSCM', branches: [[name: '$VERSION']], extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'backend']], userRemoteConfigs: [[url: 'https://github.com/pingworks/phonebook-backend.git']]])
+        checkout([$class: 'GitSCM', extensions: [[$class: 'RelativeTargetDirectory', relativeTargetDir: 'buildscripts']], userRemoteConfigs: [[url: 'https://github.com/pingworks/phonebook-buildscripts.git']]])
+    }
+    stage('CS:Build & Test') {
+        docker.image('registry:5000/infra/ruby-phonebook:019ab7bab4cc').inside ('-u 0'){
+            sh 'cd backend && bash -x ../buildscripts/pbuilder.sh clean package'
+        }
+    }
+    stage("CS:Results") {
+        //junit "backend/rspec*.xml"
+        archive 'backend/target/*.deb'
+    }
+    stage("CS:Application Image") {
+        file ='phonebook-backend_1git${sha1}_amd64.deb'
+        tag = "registry:5000/${NAMESPACE}/phonebook-backend:1git${sha1}"
+        params = "--build-arg ARTEFACT_FILE=${file} backend"
+
+        img = docker.build(tag, params)
+        docker.withRegistry("https://registry:5000") {
+            img.push()
+        }
+    }
+}

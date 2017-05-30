@@ -3,6 +3,8 @@
 name=$1
 cmd=$2
 
+SVCDOMAIN='k8s.ws.p7-s.net'
+
 if [ -z "$name" -o -z "$cmd" ]; then
   echo "Usage $0 <name> <cmd>"
   exit 1
@@ -14,14 +16,11 @@ if [ -z "$KUBECTL" ]; then
   fi
 fi
 if [ -z "$KUBE_SERVER" ]; then
-  KUBE_SERVER="https://kubernetes.default.svc.cluster.local"
+  KUBE_SERVER="https://kubernetes.default.svc.${SVCDOMAIN}"
 fi
 if [ -z "$NAMESPACE" ]; then
   NAMESPACE="default"
 fi
-
-function join_by { local d=$1; shift; echo -n "$1"; shift; printf "%s" "${@/#/$d}"; }
-cmdstring='[ "'$(join_by '", "' $cmd)'" ]'
 
 $KUBECTL exec -ti $name \
   --server=${KUBE_SERVER} \

@@ -4,10 +4,10 @@ set -e
 
 KUBEVERSION="v1.6.2"
 SVCCIDR="10.96.0.0/12"
-SVCDOMAIN="cluster.local"
+SVCDOMAIN="k8s.ws.p7-s.net"
 CLUSTERDNS="10.96.0.10"
 APISERVER="10.96.0.1"
-SEARCHDOMAIN="infra.svc.cluster.local kube-system.svc.cluster.local"
+SEARCHDOMAIN="infra.svc.${SVCDOMAIN} kube-system.svc.${SVCDOMAIN}"
 
 USERNAME=${SUDO_USER}
 NAMESPACE=$USERNAME

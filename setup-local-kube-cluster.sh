@@ -4,7 +4,7 @@ set -e
 
 KUBEVERSION="v1.6.2"
 SVCCIDR="10.96.0.0/12"
-SVCDOMAIN="k8s.ws.p7-s.net"
+SVCDOMAIN="cluster.local"
 CLUSTERDNS="10.96.0.10"
 APISERVER="10.96.0.1"
 SEARCHDOMAIN="infra.svc.${SVCDOMAIN} kube-system.svc.${SVCDOMAIN}"

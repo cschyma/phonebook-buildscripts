@@ -3,7 +3,7 @@
 name=$1
 cmd=$2
 
-SVCDOMAIN='k8s.ws.p7-s.net'
+SVCDOMAIN='cluster.local'
 
 if [ -z "$name" -o -z "$cmd" ]; then
   echo "Usage $0 <name> <cmd>"

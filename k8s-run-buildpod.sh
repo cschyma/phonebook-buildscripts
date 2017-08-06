@@ -5,7 +5,7 @@ name=$2
 cmd=$3
 override_file=$4
 
-SVCDOMAIN='k8s.ws.p7-s.net'
+SVCDOMAIN='cluster.local'
 
 if [ -z "$name" -o -z "$img" ]; then
   echo "Usage $0 <image> <name> [<cmd>] [<override-file>]"

@@ -1,5 +1,5 @@
 #!/bin/bash
-SVCDOMAIN="k8s.ws.p7-s.net"
+SVCDOMAIN="cluster.local"
 
 if [ -z "$KUBECTL" ]; then
   KUBECTL="$(which kubectl)"

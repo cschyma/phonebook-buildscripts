@@ -1,7 +1,7 @@
 #!/bin/bash
 
 name=$1
-SVCDOMAIN="k8s.ws.p7-s.net"
+SVCDOMAIN="cluster.local"
 if [ -z "$name" ]; then
   echo "Usage $0 <name>"
   exit 1

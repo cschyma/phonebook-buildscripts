@@ -38,16 +38,16 @@ systemctl enable kubelet
 systemctl start kubelet
 log_end "done."
 
-log_start "Waiting for cluster to start.."
-sleep 10
-while ! nslookup -timeout=1 -retry=1 kubernetes.default.svc.${SVCDOMAIN} 10.96.0.10 > /dev/null 2>&1; do
-  echo -n '.'
-  sleep 5;
-done
-echo
-log_end "done."
+#log_start "Waiting for cluster to start.."
+#sleep 10
+#while ! nslookup -timeout=1 -retry=1 kubernetes.default.svc.${SVCDOMAIN} 10.96.0.10 > /dev/null 2>&1; do
+#  echo -n '.'
+#  sleep 5;
+#done
+#echo
+#log_end "done."
 
-log_start "Enabling k8s dns.."
-sed -i -e 's;^#nameserver 10.96.0.10;nameserver 10.96.0.10;' /etc/resolvconf/resolv.conf.d/head
-sed -i -e 's;^#nameserver 10.96.0.10;nameserver 10.96.0.10;' /etc/resolv.conf
-log_end "done."
+#log_start "Enabling k8s dns.."
+#sed -i -e 's;^#nameserver 10.96.0.10;nameserver 10.96.0.10;' /etc/resolvconf/resolv.conf.d/head
+#sed -i -e 's;^#nameserver 10.96.0.10;nameserver 10.96.0.10;' /etc/resolv.conf
+#log_end "done."

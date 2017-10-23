@@ -34,10 +34,10 @@ for dir in image containers; do
 done
 log_end "done."
 
-log_start "Disabling k8s dns.."
-sed -i -e 's;^nameserver 10.96.0.10;#nameserver 10.96.0.10;' /etc/resolvconf/resolv.conf.d/head
-sed -i -e 's;^nameserver 10.96.0.10;#nameserver 10.96.0.10;' /etc/resolv.conf
-log_end "done."
+#log_start "Disabling k8s dns.."
+#sed -i -e 's;^nameserver 10.96.0.10;#nameserver 10.96.0.10;' /etc/resolvconf/resolv.conf.d/head
+#sed -i -e 's;^nameserver 10.96.0.10;#nameserver 10.96.0.10;' /etc/resolv.conf
+#log_end "done."
 
 log_start "Starting docker.."
 systemctl start docker
